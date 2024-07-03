@@ -17,9 +17,9 @@ import java.util.Map;
 /**
  * Actual implementation of the Kafka Connect MQTT Source Task
  */
-public class MQTTSourceTask extends SourceTask implements IMqttMessageListener {
-
+public class MQTTSourceTask extends SourceTask {
     private Logger log = LoggerFactory.getLogger(MQTTSourceConnector.class);
+
     private MQTTSourceConnectorConfig config;
     private MQTTSourceConverter mqttSourceConverter;
     private SourceRecordDeque sourceRecordDeque;
@@ -32,43 +32,64 @@ public class MQTTSourceTask extends SourceTask implements IMqttMessageListener {
         this.sourceRecordDeque = SourceRecordDequeBuilder.of().batchSize(4096).emptyWaitMs(100).maximumCapacityTimeoutMs(60000).maximumCapacity(50000).build();
         try {
             mqttClient = new MqttClient(config.getString(MQTTSourceConnectorConfig.BROKER), config.getString(MQTTSourceConnectorConfig.CLIENTID), new MemoryPersistence());
+            mqttClient.setCallback(new MqttCallbackExtended() {
+                @Override
+                public void connectComplete(boolean reconnect, String serverURI) {
+                    if (reconnect) {
+                        log.info("Reconnected to MQTT Broker " + serverURI);
+                    }
+
+                    String subscribedTopic = config.getString(MQTTSourceConnectorConfig.MQTT_TOPIC);
+                    int qos = config.getInt(MQTTSourceConnectorConfig.MQTT_QOS);
+
+                    log.info("Subscribing to " + subscribedTopic + " with QoS " + qos);
+                    try {
+                        mqttClient.subscribe(subscribedTopic, qos, (topic, message) -> {
+                            messageArrived0(topic, message);
+                        });
+                        log.info("Subscribed to " + subscribedTopic + " with QoS " + qos);
+
+                    } catch (MqttException e) {
+                        throw new ConnectException(e);
+                    }
+                }
+
+                @Override
+                public void connectionLost(Throwable cause) {
+                    log.warn("Connection is lost", cause);
+                }
+
+                @Override
+                public void messageArrived(String topic, MqttMessage message) throws Exception {
+                    messageArrived0(topic, message);
+                }
+
+                @Override
+                public void deliveryComplete(IMqttDeliveryToken token) {
+                    // nothing to do.
+                }
+            });
+
+            MqttConnectOptions options = new MqttConnectOptions();
+            options.setCleanSession(config.getBoolean(MQTTSourceConnectorConfig.MQTT_CLEANSESSION));
+            options.setKeepAliveInterval(config.getInt(MQTTSourceConnectorConfig.MQTT_KEEPALIVEINTERVAL));
+            options.setConnectionTimeout(config.getInt(MQTTSourceConnectorConfig.MQTT_CONNECTIONTIMEOUT));
+            options.setAutomaticReconnect(config.getBoolean(MQTTSourceConnectorConfig.MQTT_ARC));
+
+            if (!config.getString(MQTTSourceConnectorConfig.MQTT_USERNAME).isEmpty()
+                    && !config.getPassword(MQTTSourceConnectorConfig.MQTT_PASSWORD).equals("")) {
+                options.setUserName(config.getString(MQTTSourceConnectorConfig.MQTT_USERNAME));
+                options.setPassword(config.getPassword(MQTTSourceConnectorConfig.MQTT_PASSWORD).value().toCharArray());
+            }
+            log.info("MQTT Connection properties: " + options);
 
             log.info("Connecting to MQTT Broker " + config.getString(MQTTSourceConnectorConfig.BROKER));
-            connect(mqttClient);
+            mqttClient.connect(options);
             log.info("Connected to MQTT Broker");
 
-            String topicSubscription = this.config.getString(MQTTSourceConnectorConfig.MQTT_TOPIC);
-            int qosLevel = this.config.getInt(MQTTSourceConnectorConfig.MQTT_QOS);
-
-            log.info("Subscribing to " + topicSubscription + " with QOS " + qosLevel);
-            mqttClient.subscribe(topicSubscription, qosLevel, (topic, message) -> {
-                log.debug("Message arrived in connector from topic " + topic);
-                SourceRecord record = mqttSourceConverter.convert(topic, message);
-                log.debug("Converted record: " + record);
-                sourceRecordDeque.add(record);
-            });
-            log.info("Subscribed to " + topicSubscription + " with QOS " + qosLevel);
-        }
-        catch (MqttException e) {
+        } catch (MqttException e) {
             throw new ConnectException(e);
         }
-    }
-
-    private void connect(IMqttClient mqttClient) throws MqttException{
-        MqttConnectOptions connOpts = new MqttConnectOptions();
-        connOpts.setCleanSession(config.getBoolean(MQTTSourceConnectorConfig.MQTT_CLEANSESSION));
-        connOpts.setKeepAliveInterval(config.getInt(MQTTSourceConnectorConfig.MQTT_KEEPALIVEINTERVAL));
-        connOpts.setConnectionTimeout(config.getInt(MQTTSourceConnectorConfig.MQTT_CONNECTIONTIMEOUT));
-        connOpts.setAutomaticReconnect(config.getBoolean(MQTTSourceConnectorConfig.MQTT_ARC));
-
-        if (!config.getString(MQTTSourceConnectorConfig.MQTT_USERNAME).equals("") && !config.getPassword(MQTTSourceConnectorConfig.MQTT_PASSWORD).equals("")) {
-            connOpts.setUserName(config.getString(MQTTSourceConnectorConfig.MQTT_USERNAME));
-            connOpts.setPassword(config.getPassword(MQTTSourceConnectorConfig.MQTT_PASSWORD).value().toCharArray());
-        }
-
-        log.info("MQTT Connection properties: " + connOpts);
-
-        mqttClient.connect(connOpts);
     }
 
     /**
@@ -84,6 +105,7 @@ public class MQTTSourceTask extends SourceTask implements IMqttMessageListener {
     }
 
     public void stop() {
+        // TODO need graceful shutdown
         if (mqttClient.isConnected()) {
             try {
                 log.debug("Disconnecting from MQTT Broker " + config.getString(MQTTSourceConnectorConfig.BROKER));
@@ -98,14 +120,9 @@ public class MQTTSourceTask extends SourceTask implements IMqttMessageListener {
         return Version.getVersion();
     }
 
-
-    /**
-     * Callback method when a MQTT message arrives at the Topic
-     */
-    @Override
-    public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
+    private void messageArrived0(String topic, MqttMessage message) throws Exception {
         log.debug("Message arrived in connector from topic " + topic);
-        SourceRecord record = mqttSourceConverter.convert(topic, mqttMessage);
+        SourceRecord record = mqttSourceConverter.convert(topic, message);
         log.debug("Converted record: " + record);
         sourceRecordDeque.add(record);
     }
