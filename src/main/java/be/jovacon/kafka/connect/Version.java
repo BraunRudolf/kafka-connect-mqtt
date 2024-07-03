@@ -1,5 +1,3 @@
-
-
 package be.jovacon.kafka.connect;
 
 import org.slf4j.Logger;
