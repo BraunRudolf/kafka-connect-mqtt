@@ -18,7 +18,7 @@ import java.util.Map;
  * Actual implementation of the Kafka Connect MQTT Source Task
  */
 public class MQTTSourceTask extends SourceTask {
-    private Logger log = LoggerFactory.getLogger(MQTTSourceConnector.class);
+    private final Logger log = LoggerFactory.getLogger(MQTTSourceConnector.class);
 
     private MQTTSourceConnectorConfig config;
     private MQTTSourceConverter mqttSourceConverter;
@@ -29,9 +29,14 @@ public class MQTTSourceTask extends SourceTask {
     public void start(Map<String, String> props) {
         config = new MQTTSourceConnectorConfig(props);
         mqttSourceConverter = new MQTTSourceConverter(config);
-        this.sourceRecordDeque = SourceRecordDequeBuilder.of().batchSize(4096).emptyWaitMs(100).maximumCapacityTimeoutMs(60000).maximumCapacity(50000).build();
+        this.sourceRecordDeque = SourceRecordDequeBuilder.of()
+                .batchSize(config.getInt(MQTTSourceConnectorConfig.RECORDS_BUFFER_MAX_BATCH_SIZE))
+                .emptyWaitMs(config.getInt(MQTTSourceConnectorConfig.RECORDS_BUFFER_EMPTY_TIMEOUT))
+                .maximumCapacityTimeoutMs(config.getInt(MQTTSourceConnectorConfig.RECORDS_BUFFER_FULL_TIMEOUT))
+                .maximumCapacity(config.getInt(MQTTSourceConnectorConfig.RECORDS_BUFFER_MAX_CAPACITY))
+                .build();
         try {
-            mqttClient = new MqttClient(config.getString(MQTTSourceConnectorConfig.BROKER), config.getString(MQTTSourceConnectorConfig.CLIENTID), new MemoryPersistence());
+            mqttClient = new MqttClient(config.getString(MQTTSourceConnectorConfig.BROKER), config.getString(MQTTSourceConnectorConfig.MQTT_CLIENT_ID), new MemoryPersistence());
             mqttClient.setCallback(new MqttCallbackExtended() {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
@@ -39,7 +44,7 @@ public class MQTTSourceTask extends SourceTask {
                         log.info("Reconnected to MQTT Broker " + serverURI);
                     }
 
-                    String subscribedTopic = config.getString(MQTTSourceConnectorConfig.MQTT_TOPIC);
+                    String subscribedTopic = config.getString(MQTTSourceConnectorConfig.MQTT_TOPICS);
                     int qos = config.getInt(MQTTSourceConnectorConfig.MQTT_QOS);
 
                     log.info("Subscribing to " + subscribedTopic + " with QoS " + qos);
@@ -71,10 +76,10 @@ public class MQTTSourceTask extends SourceTask {
             });
 
             MqttConnectOptions options = new MqttConnectOptions();
-            options.setCleanSession(config.getBoolean(MQTTSourceConnectorConfig.MQTT_CLEANSESSION));
-            options.setKeepAliveInterval(config.getInt(MQTTSourceConnectorConfig.MQTT_KEEPALIVEINTERVAL));
-            options.setConnectionTimeout(config.getInt(MQTTSourceConnectorConfig.MQTT_CONNECTIONTIMEOUT));
-            options.setAutomaticReconnect(config.getBoolean(MQTTSourceConnectorConfig.MQTT_ARC));
+            options.setCleanSession(config.getBoolean(MQTTSourceConnectorConfig.MQTT_CLEAN_SESSION));
+            options.setKeepAliveInterval(config.getInt(MQTTSourceConnectorConfig.MQTT_KEEPALIVE_INTERVAL));
+            options.setConnectionTimeout(config.getInt(MQTTSourceConnectorConfig.MQTT_CONNECTION_TIMEOUT));
+            options.setAutomaticReconnect(config.getBoolean(MQTTSourceConnectorConfig.MQTT_AUTO_RECONNECT));
 
             if (!config.getString(MQTTSourceConnectorConfig.MQTT_USERNAME).isEmpty()
                     && !config.getPassword(MQTTSourceConnectorConfig.MQTT_PASSWORD).equals("")) {
