@@ -1,6 +1,8 @@
-package be.jovacon.kafka.connect;
+package be.jovacon.connect.mqtt;
 
-import be.jovacon.kafka.connect.config.MQTTSinkConnectorConfig;
+import be.jovacon.connect.mqtt.sink.MQTTSinkConnectorConfig;
+import be.jovacon.connect.mqtt.sink.MQTTSinkTask;
+import be.jovacon.connect.mqtt.util.Version;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
@@ -13,14 +15,11 @@ import java.util.*;
  * Implementation of the Kafka Connect Sink connector
  */
 public class MQTTSinkConnector extends SinkConnector {
-
-    private static final Logger log = LoggerFactory.getLogger(MQTTSinkConnector.class);
-    private MQTTSinkConnectorConfig mqttSinkConnectorConfig;
+    private static final Logger logger = LoggerFactory.getLogger(MQTTSinkConnector.class);
     private Map<String, String> configProps;
 
     @Override
     public void start(Map<String, String> map) {
-        this.mqttSinkConnectorConfig = new MQTTSinkConnectorConfig(map);
         this.configProps = Collections.unmodifiableMap(map);
     }
 
@@ -31,25 +30,25 @@ public class MQTTSinkConnector extends SinkConnector {
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        log.debug("Enter taskconfigs");
+        logger.debug("Enter taskconfigs");
         if (maxTasks > 1) {
-            log.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
+            logger.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
         }
         List<Map<String, String>> taskConfigs = new ArrayList<>(1);
         taskConfigs.add(new HashMap<>(configProps));
 
-        log.debug("Taskconfigs: " + taskConfigs);
+        logger.debug("Taskconfigs: " + taskConfigs);
         return taskConfigs;
     }
 
     @Override
     public void stop() {
-
+        // nothing to do.
     }
 
     @Override
     public ConfigDef config() {
-        return MQTTSinkConnectorConfig.configDef();
+        return MQTTSinkConnectorConfig.CONFIG_DEFINITION;
     }
 
     @Override

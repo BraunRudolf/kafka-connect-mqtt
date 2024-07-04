@@ -73,8 +73,8 @@ curl -X POST \
   -d '{ "name": "mqtt-source-connector",
     "config":
     {
-      "connector.class":"be.jovacon.kafka.connect.MQTTSourceConnector",
-      "mqtt.topic":"my_mqtt_topic",
+      "connector.class":"be.jovacon.connect.mqtt.MQTTSourceConnector",
+      "mqtt.topics":"my_mqtt_topic",
       "kafka.topic":"my_kafka_topic",
       "mqtt.clientID":"my_client_id",
       "mqtt.broker":"tcp://127.0.0.1:1883",
@@ -106,7 +106,7 @@ curl -X POST \
   -d '{ "name": "mqtt-sink-connector",
     "config":
     {
-      "connector.class":"be.jovacon.kafka.connect.MQTTSinkConnector",
+      "connector.class":"be.jovacon.connect.mqtt.MQTTSinkConnector",
       "mqtt.topic":"my_mqtt_topic",
       "topics":"my_kafka_topic",
       "mqtt.clientID":"my_client_id",

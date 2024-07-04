@@ -1,6 +1,8 @@
-package be.jovacon.kafka.connect;
+package be.jovacon.connect.mqtt;
 
-import be.jovacon.kafka.connect.config.MQTTSourceConnectorConfig;
+import be.jovacon.connect.mqtt.source.MQTTSourceConnectorConfig;
+import be.jovacon.connect.mqtt.source.MQTTSourceTask;
+import be.jovacon.connect.mqtt.util.Version;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -13,13 +15,10 @@ import java.util.*;
  * Implementation of the Kafka Connect Source connector
  */
 public class MQTTSourceConnector extends SourceConnector {
-
-    private static final Logger log = LoggerFactory.getLogger(MQTTSourceConnector.class);
-    private MQTTSourceConnectorConfig mqttSourceConnectorConfig;
+    private static final Logger logger = LoggerFactory.getLogger(MQTTSourceConnector.class);
     private Map<String, String> configProps;
 
     public void start(Map<String, String> map) {
-        this.mqttSourceConnectorConfig = new MQTTSourceConnectorConfig(map);
         this.configProps = Collections.unmodifiableMap(map);
     }
 
@@ -28,23 +27,23 @@ public class MQTTSourceConnector extends SourceConnector {
     }
 
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        log.debug("Enter taskconfigs");
+        logger.debug("Enter taskconfigs");
         if (maxTasks > 1) {
-            log.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
+            logger.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
         }
         List<Map<String, String>> taskConfigs = new ArrayList<>(1);
         taskConfigs.add(new HashMap<>(configProps));
 
-        log.debug("Taskconfigs: " + taskConfigs);
+        logger.debug("Taskconfigs: " + taskConfigs);
         return taskConfigs;
     }
 
     public void stop() {
-
+        // nothing to do.
     }
 
     public ConfigDef config() {
-        return MQTTSourceConnectorConfig.configDef();
+        return MQTTSourceConnectorConfig.CONFIG_DEFINITION;
     }
 
     public String version() {

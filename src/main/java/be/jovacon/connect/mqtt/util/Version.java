@@ -1,4 +1,4 @@
-package be.jovacon.kafka.connect;
+package be.jovacon.connect.mqtt.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
