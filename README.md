@@ -136,9 +136,10 @@ curl -X POST \
 ## Optimization Points(By wl-times.com)
 
 ### Source Connector
-* Optimize the cache queue by adding a backpressure mechanism and more detailed parameter configuration.
 * Supports forwarding data from multiple MQTT topics to the same Kafka topic.
 * Support for Kafka Converter mechanism enhancement
+* Optimize the cache queue by adding a backpressure mechanism and more detailed parameter configuration.
+* Implemented the MQTT reconnection mechanism.
 * Optimized the project structure
 
 
