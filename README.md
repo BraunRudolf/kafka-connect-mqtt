@@ -20,7 +20,7 @@ To build the connector, you must have the following installed:
 
 Clone the repository with the following command:
 ```
-git clone https://gitlab.pyou.com/opsPlatform/kafka-connect-mqtt.git
+git clone git@github.com:zhuchunlai/kafka-connect-mqtt.git
 ```
 Change directory into the `kafka-connect-mqtt` directory
 ```
@@ -133,7 +133,7 @@ curl -X POST \
 * `mqtt.password` (optional): Password to connect to MQTT broker
 
 
-## Optimization Points(By wl-times.com)
+## Optimization Points(By zhuchunlai)
 
 ### Source Connector
 * Supports forwarding data from multiple MQTT topics to the same Kafka topic.
