@@ -30,14 +30,14 @@ public class MQTTSinkConnector extends SinkConnector {
 
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        logger.debug("Enter taskconfigs");
+        logger.debug("Enter task configs");
         if (maxTasks > 1) {
             logger.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
         }
         List<Map<String, String>> taskConfigs = new ArrayList<>(1);
         taskConfigs.add(new HashMap<>(configProps));
 
-        logger.debug("Taskconfigs: " + taskConfigs);
+        logger.debug("Task configs: " + taskConfigs);
         return taskConfigs;
     }
 

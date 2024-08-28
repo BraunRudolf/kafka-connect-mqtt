@@ -1,5 +1,6 @@
 package be.jovacon.connect.mqtt.sink;
 
+import be.jovacon.connect.mqtt.Configuration;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
@@ -21,7 +22,7 @@ public class MQTTSinkConverter {
 
         MqttMessage mqttMessage = new MqttMessage();
         mqttMessage.setPayload(((String) sinkRecord.value()).getBytes());
-        mqttMessage.setQos(this.config.getQoS());
+        mqttMessage.setQos(this.config.getInt(Configuration.MQTT_QOS));
         logger.trace("Result MQTTMessage: " + mqttMessage);
         return mqttMessage;
     }

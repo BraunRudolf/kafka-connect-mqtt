@@ -1,18 +1,30 @@
 package be.jovacon.connect.mqtt.source;
 
+import be.jovacon.connect.mqtt.ConverterBuilder;
+import be.jovacon.connect.mqtt.Event;
+import be.jovacon.connect.mqtt.EventQueue;
 import be.jovacon.connect.mqtt.util.Version;
-import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordDeque;
-import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordDequeBuilder;
+import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.apache.kafka.connect.storage.Converter;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static be.jovacon.connect.mqtt.Configuration.*;
+import static be.jovacon.connect.mqtt.source.MQTTSourceConnectorConfig.*;
 
 /**
  * Actual implementation of the Kafka Connect MQTT Source Task
@@ -21,35 +33,57 @@ public class MQTTSourceTask extends SourceTask {
     private static final Logger logger = LoggerFactory.getLogger(MQTTSourceTask.class);
 
     private MQTTSourceConnectorConfig config;
-    private MQTTSourceConverter converter;
-    private SourceRecordDeque buffer;
+    private Converter keyConverter;
+    private Converter valueConverter;
+    private EventQueue<SourceRecord> buffer;
     private IMqttClient client;
 
     public void start(Map<String, String> props) {
         config = new MQTTSourceConnectorConfig(props);
-        converter = new MQTTSourceConverter(config);
-        buffer = SourceRecordDequeBuilder.of().batchSize(config.getRecordsBufferMaxBatchSize()).emptyWaitMs(config.getRecordsBufferEmptyTimeout()).maximumCapacityTimeoutMs(config.getRecordsBufferFullTimeout()).maximumCapacity(config.getRecordsBufferMaxCapacity()).build();
+        buffer = new EventQueue.Builder<SourceRecord>()
+                .maxQueueSize(config.getInt(RECORDS_BUFFER_MAX_CAPACITY))
+                .maxQueueSizeInBytes(config.getInt(RECORDS_BUFFER_MAX_CAPACITY_IN_BYTES))
+                .maxBatchSize(config.getInt(RECORDS_BUFFER_MAX_BATCH_SIZE))
+                .pollInterval(Duration.of(config.getInt(RECORDS_BUFFER_EMPTY_TIMEOUT), ChronoUnit.MILLIS))
+                .build();
+
+        ConverterBuilder converterBuilder = new ConverterBuilder(config);
         try {
-            client = new MqttClient(config.getBroker(), config.getClientId(), new MemoryPersistence());
+            keyConverter = converterBuilder.build(true);
+            valueConverter = converterBuilder.build(false);
+        } catch (Exception e) {
+            throw new ConnectException("Initialize converter failed.", e);
+        }
+
+        final String[] topics = config.getList(MQTTSourceConnectorConfig.MQTT_TOPICS).toArray(new String[0]);
+        final int[] qos = new int[topics.length];
+        for (int i = 0, j = qos.length; i < j; i++) {
+            qos[i] = config.getInt(MQTT_QOS);
+        }
+
+        try {
+            client = new MqttClient(config.getString(BROKER), config.getString(MQTT_CLIENT_ID), new MemoryPersistence());
+            if (config.getInt(MQTT_QOS) > 0) {
+                // Set manual ACK to prevent message loss due to queue buildup.
+                client.setManualAcks(true);
+            }
             client.setCallback(new MqttCallbackExtended() {
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
                     if (reconnect) {
                         logger.info("Reconnected to MQTT Broker " + serverURI);
-                    }
 
-                    final String subscribedTopic = config.getTopics();
-                    final int qos = config.getQoS();
+                        logger.info("Resubscribing to " + Arrays.toString(topics) + " with QoS " + config.getInt(MQTT_QOS));
+                        try {
+                            client.subscribe(topics, qos);
+                            logger.info("Resubscribed to " + Arrays.toString(topics));
 
-                    logger.info("Subscribing to " + subscribedTopic + " with QoS " + qos);
-                    try {
-                        client.subscribe(subscribedTopic, qos, (topic, message) -> {
-                            messageArrived0(topic, message);
-                        });
-                        logger.info("Subscribed to " + subscribedTopic + " with QoS " + qos);
+                        } catch (MqttException e) {
+                            String message = "Resubscribe to " + Arrays.toString(topics) + " error.";
+                            logger.error(message, e);
 
-                    } catch (MqttException e) {
-                        throw new ConnectException(e);
+                            throw new ConnectException(message, e);
+                        }
                     }
                 }
 
@@ -70,22 +104,34 @@ public class MQTTSourceTask extends SourceTask {
             });
 
             MqttConnectOptions options = new MqttConnectOptions();
-            options.setCleanSession(config.isCleanSession());
-            options.setKeepAliveInterval(config.getKeepaliveInterval());
-            options.setConnectionTimeout(config.getConnectionTimeout());
-            options.setAutomaticReconnect(config.isAutoReconnect());
+            options.setCleanSession(config.getBoolean(MQTT_CLEAN_SESSION));
+            options.setKeepAliveInterval(config.getInt(MQTT_KEEPALIVE_INTERVAL));
+            options.setConnectionTimeout(config.getInt(MQTT_CONNECTION_TIMEOUT));
+            options.setAutomaticReconnect(config.getBoolean(MQTT_AUTO_RECONNECT));
 
-            if (!config.getUserName().isEmpty() && !config.getPassword().equals("")) {
-                options.setUserName(config.getUserName());
-                options.setPassword(config.getPassword().value().toCharArray());
+            if (!config.getString(MQTT_USERNAME).isEmpty() && !config.getPassword(MQTT_PASSWORD).equals("")) {
+                options.setUserName(config.getString(MQTT_USERNAME));
+                options.setPassword(config.getPassword(MQTT_PASSWORD).value().toCharArray());
             }
             logger.info("MQTT Connection properties: " + options);
 
-            logger.info("Connecting to MQTT Broker " + config.getBroker());
+            logger.info("Connecting to MQTT Broker " + config.getString(BROKER));
             client.connect(options);
             logger.info("Connected to MQTT Broker");
 
+            logger.info("Subscribing to " + Arrays.toString(topics) + " with QoS " + config.getInt(MQTT_QOS));
+            try {
+                client.subscribe(topics, qos);
+                logger.info("Subscribed to " + Arrays.toString(topics));
+
+            } catch (MqttException e) {
+                String message = "Subscribe to " + Arrays.toString(topics) + " error.";
+                logger.error(message, e);
+                throw new ConnectException(message, e);
+            }
+
         } catch (MqttException e) {
+            logger.error("Connect to MQTT Broker error.", e);
             throw new ConnectException(e);
         }
     }
@@ -97,20 +143,45 @@ public class MQTTSourceTask extends SourceTask {
      * @throws InterruptedException
      */
     public List<SourceRecord> poll() throws InterruptedException {
-        List<SourceRecord> records = buffer.getBatch();
+        List<Event<SourceRecord>> events = buffer.poll();
+
+        if (events == null || events.isEmpty()) {
+            return null;
+        }
+
+        if (config.getInt(MQTT_QOS) > 0) {
+            // ack
+            for (Event<SourceRecord> event : events) {
+                try {
+                    client.messageArrivedComplete(event.getMessageId(), event.getQos());
+                } catch (MqttException e) {
+                    // Theoretically, such an error should not occur;
+                    // even if it does, it would only result in duplicate message consumption.
+                    // Therefore, if a retry still fails, it should be ignored.
+                    logger.warn("Ack message[id: {}, qos: {}] error.", event.getMessageId(), event.getQos(), e);
+
+                    try {
+                        client.messageArrivedComplete(event.getMessageId(), event.getQos());
+                    } catch (MqttException ignored) {
+                    }
+                }
+            }
+        }
+        List<SourceRecord> records = events.stream().map(Event::getRecord).collect(Collectors.toList());
         logger.trace("Records returning to poll(): " + records);
+
         return records;
     }
 
     public void stop() {
-        // TODO need graceful shutdown
-        if (client.isConnected()) {
-            try {
-                logger.debug("Disconnecting from MQTT Broker " + config.getBroker());
+        try {
+            logger.info("Disconnecting from MQTT Broker " + config.getString(BROKER));
+            if (client != null) {
                 client.disconnect();
-            } catch (MqttException mqttException) {
-                logger.error("Exception thrown while disconnecting client.", mqttException);
             }
+            logger.info("Disconnected from MQTT Broker and the task is stopped.");
+        } catch (MqttException e) {
+            logger.error("Exception thrown while disconnecting client.", e);
         }
     }
 
@@ -120,8 +191,44 @@ public class MQTTSourceTask extends SourceTask {
 
     private void messageArrived0(String topic, MqttMessage message) throws Exception {
         logger.debug("Message arrived in connector from topic " + topic);
-        SourceRecord record = converter.convert(topic, message);
-        logger.debug("Converted record: " + record);
-        buffer.add(record);
+        Event<SourceRecord> event = convert(topic, message);
+        logger.debug("Message converted: " + event);
+
+        buffer.enqueue(event);
     }
+
+    private Event<SourceRecord> convert(String topic, MqttMessage message) {
+        logger.debug("Converting MQTT message: " + message);
+        // Kafka 2.3
+        ConnectHeaders headers = new ConnectHeaders();
+        headers.addInt("mqtt.message.id", message.getId());
+        headers.addInt("mqtt.message.qos", message.getQos());
+        headers.addBoolean("mqtt.message.duplicate", message.isDuplicate());
+        headers.addString("mqtt.topic", topic);
+
+        byte[] payload = message.getPayload();
+        long size = payload.length;
+
+        SchemaAndValue convertedKey = keyConverter.toConnectData(this.config.getString(KAFKA_TOPIC), topic.getBytes());
+        SchemaAndValue convertedValue = valueConverter.toConnectData(this.config.getString(KAFKA_TOPIC), payload);
+
+        // Kafka 2.3
+        @SuppressWarnings("unchecked")
+        SourceRecord record = new SourceRecord(
+                Collections.EMPTY_MAP,
+                Collections.EMPTY_MAP,
+                this.config.getString(KAFKA_TOPIC),
+                null,
+                convertedKey.schema(),
+                convertedKey.value(),
+                convertedValue.schema(),
+                convertedValue.value(),
+                System.currentTimeMillis(),
+                headers
+        );
+        logger.debug("Converted MQTT Message: " + record);
+
+        return new Event<>(record, size, message.getId(), message.getQos());
+    }
+
 }

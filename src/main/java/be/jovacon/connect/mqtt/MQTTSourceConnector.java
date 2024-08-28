@@ -6,6 +6,7 @@ import be.jovacon.connect.mqtt.util.Version;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.SourceConnector;
+import org.apache.kafka.connect.util.ConnectorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,10 +17,14 @@ import java.util.*;
  */
 public class MQTTSourceConnector extends SourceConnector {
     private static final Logger logger = LoggerFactory.getLogger(MQTTSourceConnector.class);
-    private Map<String, String> configProps;
+    private Map<String, String> configProperties;
+    private MQTTSourceConnectorConfig config;
 
-    public void start(Map<String, String> map) {
-        this.configProps = Collections.unmodifiableMap(map);
+    public void start(Map<String, String> properties) {
+        logger.info("Starting MQTT Source Connector");
+
+        this.configProperties = Collections.unmodifiableMap(properties);
+        this.config = new MQTTSourceConnectorConfig(configProperties);
     }
 
     public Class<? extends Task> taskClass() {
@@ -27,14 +32,14 @@ public class MQTTSourceConnector extends SourceConnector {
     }
 
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        logger.debug("Enter taskconfigs");
         if (maxTasks > 1) {
             logger.info("maxTasks is " + maxTasks + ". MaxTasks > 1 is not supported in this connector.");
         }
-        List<Map<String, String>> taskConfigs = new ArrayList<>(1);
-        taskConfigs.add(new HashMap<>(configProps));
 
-        logger.debug("Taskconfigs: " + taskConfigs);
+        List<Map<String, String>> taskConfigs = new ArrayList<>(1);
+        taskConfigs.add(new HashMap<>(configProperties));
+
+        logger.debug("Task configs: " + taskConfigs);
         return taskConfigs;
     }
 

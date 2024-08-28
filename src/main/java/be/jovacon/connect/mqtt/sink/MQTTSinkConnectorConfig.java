@@ -1,27 +1,20 @@
 package be.jovacon.connect.mqtt.sink;
 
-import be.jovacon.connect.mqtt.MQTTConnectorConfig;
+import be.jovacon.connect.mqtt.Configuration;
 import org.apache.kafka.common.config.ConfigDef;
 
 import java.util.Map;
 
-public class MQTTSinkConnectorConfig extends MQTTConnectorConfig {
-    private static final String MQTT_TOPIC = "mqtt.topic";
-    private static final String MQTT_TOPIC_DOC = "List of topic names to subscribe to";
+public class MQTTSinkConnectorConfig extends Configuration {
 
-    private static final String KAFKA_TOPICS = "topics";
-    private static final String KAFKA_TOPICS_DOC = "List of kafka topics to consume from";
+    public static final String MQTT_TOPIC = "mqtt.topic";
+    public static final String MQTT_TOPIC_DOC = "List of topic names to subscribe to";
+
+    public static final String KAFKA_TOPICS = "topics";
+    public static final String KAFKA_TOPICS_DOC = "List of kafka topics to consume from";
 
     public MQTTSinkConnectorConfig(Map<?, ?> originals) {
         super(definition(), originals);
-    }
-
-    public String getTopic() {
-        return getString(MQTT_TOPIC);
-    }
-
-    public String getKafkaTopics() {
-        return getString(KAFKA_TOPICS);
     }
 
     public static final ConfigDef CONFIG_DEFINITION = definition();
