@@ -140,6 +140,7 @@ curl -X POST \
 * Support for Kafka Converter mechanism enhancement
 * Optimize the cache queue by adding a backpressure mechanism and more detailed parameter configuration.
 * Implemented the MQTT reconnection mechanism.
+* Add the ack mechanism for QoS=(1, 2)
 * Optimized the project structure
 
 
