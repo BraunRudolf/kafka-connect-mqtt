@@ -133,6 +133,19 @@ curl -X POST \
 * `mqtt.password` (optional): Password to connect to MQTT broker
 
 
+## Optimization Points(By wl-times.com)
+
+### Source Connector
+* Optimize the cache queue by adding a backpressure mechanism and more detailed parameter configuration.
+* Support for Kafka Converter mechanism enhancement
+* Optimized the project structure
+
+
+## TODO
+* Observability, metrics related to performance and stability, integrated with Prometheus.
+* Optimization of the Sink Connector for use in production environments.
+
+
 ## Remark
 * It's forked from https://github.com/johanvandevenne/kafka-connect-mqtt.git
 * Origin Author: Johan Vandevenne 
