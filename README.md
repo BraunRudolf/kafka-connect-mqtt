@@ -137,6 +137,7 @@ curl -X POST \
 
 ### Source Connector
 * Optimize the cache queue by adding a backpressure mechanism and more detailed parameter configuration.
+* Supports forwarding data from multiple MQTT topics to the same Kafka topic.
 * Support for Kafka Converter mechanism enhancement
 * Optimized the project structure
 
