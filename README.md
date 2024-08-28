@@ -20,7 +20,7 @@ To build the connector, you must have the following installed:
 
 Clone the repository with the following command:
 ```
-git clone https://github.com/johanvandevenne/kafka-connect-mqtt.git
+git clone https://gitlab.pyou.com/opsPlatform/kafka-connect-mqtt.git
 ```
 Change directory into the `kafka-connect-mqtt` directory
 ```
@@ -39,14 +39,14 @@ You must have Kafka 2+ installed
 
 ### Installing
 
-* Copy the folder `/target/kafka-connect-mqtt-1.0-0-package/share/kafka-connect-mqtt` to your Kafka Connect plugin path
+* Copy the folder `/target/kafka-connect-mqtt-1.0-0-package/kafka-connect-mqtt` to your Kafka Connect plugin path
 * Restart Kafka Connect
-* Check if the connector has been loaded succesfully
+* Check if the connector has been loaded successfully
 
 ```
 http://<kafkaconnect>:8083/connector-plugins
 ```
-If you see these entries, the connector has been installed succesfully
+If you see these entries, the connector has been installed successfully
 
 ```
 {
@@ -67,34 +67,38 @@ The MQTT Source connector subscribes to a Topic on a MQTT Broker and sends the m
 
 Here is a basic configuration example:
 ```
-curl -X POST \
-  http://<kafkaconnect>:8083/connectors \
-  -H 'Content-Type: application/json' \
-  -d '{ "name": "mqtt-source-connector",
-    "config":
-    {
-      "connector.class":"be.jovacon.connect.mqtt.MQTTSourceConnector",
-      "mqtt.topics":"my_mqtt_topic",
-      "kafka.topic":"my_kafka_topic",
-      "mqtt.clientID":"my_client_id",
-      "mqtt.broker":"tcp://127.0.0.1:1883",
-      "key.converter":"org.apache.kafka.connect.storage.StringConverter",
-      "key.converter.schemas.enable":false,
-      "value.converter":"org.apache.kafka.connect.storage.StringConverter",
-      "value.converter.schemas.enable":false
-    }
-}'
+name=mqtt-source
+connector.class=be.jovacon.connect.mqtt.MQTTSourceConnector
+mqtt.broker=tcp://emqx:1883
+mqtt.clientID=my_client_id
+mqtt.topics=my_mqtt_topic
+kafka.topic=my-kafka-topic
+records.buffer.max.capacity=100
+records.buffer.max.bytes=1024
+records.buffer.max.batch.size=10
+records.buffer.empty.timeout=2000
+key.converter=org.apache.kafka.connect.storage.StringConverter
+value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ```
 ### Optional Configuration options
-* `mqtt.qos` (optional): 0 – At most Once, 1 – At Least Once, 2 – Exactly Once
+* `mqtt.qos` (optional)(default: 1): 0 – At most Once, 1 – At Least Once, 2 – Exactly Once
 * `mqtt.automaticReconnect` (optional)(default: true): Should the client automatically reconnect in case of connection failures
 * `mqtt.keepAliveInterval` (optional)(default: 60 seconds)
 * `mqtt.cleanSession` (optional)(default: true): Controls the state after disconnecting the client from the broker.
 * `mqtt.connectionTimeout` (optional)(default: 30 seconds)
-* `mqtt.username` (optional): Username to connect to MQTT broker
-* `mqtt.password` (optional): Password to connect to MQTT broker
+* `mqtt.username` (optional)(default: ""): Username to connect to MQTT broker
+* `mqtt.password` (optional)(default: ""): Password to connect to MQTT broker
+* `key.converter` (optional)(default: "org.apache.kafka.connect.storage.StringConverter")
+* `key.converter.schemas.enable` (optional)(default: false)
+* `value.converter` (optional)(default: "org.apache.kafka.connect.converters.ByteArrayConverter")
+* `value.converter.schemas.enable` (optional)(default: false)
+* `records.buffer.max.capacity` (optional)(default: 50000): The max capacity of the buffer that stores the data before sending it to the Kafka Topic
+* `records.buffer.max.bytes` (optional)(default: 100 * 1024 * 1024): The maximum byte size of the buffer used to store data before sending it to the Kafka topic.
+* `records.buffer.max.batch.size` (optional)(default: 4096): The maximum size of the batch to send to Kafka topic in a single request.
+* `records.buffer.empty.timeout` (optional)(default: 100): Timeout(ms) to wait on an empty buffer for extracting records.
+* `records.buffer.full.timeout` (optional)(default: 60000): Timeout(ms) to wait on a full buffer for inserting new records.
 
-## Configuring the Sink connector
+## Configuring the Sink connector(Not optimized, not recommended for production use)
 
 The MQTT Sink Connector reads messages from a Kafka topic and publishes them to a MQTT topic.
 
@@ -129,6 +133,6 @@ curl -X POST \
 * `mqtt.password` (optional): Password to connect to MQTT broker
 
 
-## Authors
-
-* **Johan Vandevenne** - *Initial work* 
+## Remark
+* It's forked from https://github.com/johanvandevenne/kafka-connect-mqtt.git
+* Origin Author: Johan Vandevenne 
