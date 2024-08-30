@@ -10,7 +10,7 @@
     <artifactId>kafka-connect-mqtt</artifactId>
     <packaging>jar</packaging>
     <name>kafka.connect.mqtt</name>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 
     <dependencies>
         <dependency>
