@@ -40,10 +40,11 @@ public class Event<E> {
 
     @Override
     public String toString() {
-        return "Event [record=" + record + "]";
+        return "Event [size=" + size + "; record=" + record + "; attributes=]" + attributes;
     }
 
     private static final class ContextAttributes {
+
         final Map<String, Object> attributes;
 
         ContextAttributes() {
@@ -72,6 +73,10 @@ public class Event<E> {
             return this.attributes.get(name);
         }
 
+        @Override
+        public String toString() {
+            return this.attributes.isEmpty() ? "" : this.attributes.toString();
+        }
     }
 
 }
