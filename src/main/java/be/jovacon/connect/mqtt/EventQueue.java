@@ -92,7 +92,7 @@ public class EventQueue<E> implements EventQueueMetrics {
         }
 
         public EventQueue<E> build() {
-            return new EventQueue<E>(pollInterval, maxQueueSize, maxBatchSize, maxQueueSizeInBytes);
+            return new EventQueue<>(pollInterval, maxQueueSize, maxBatchSize, maxQueueSizeInBytes);
         }
     }
 
