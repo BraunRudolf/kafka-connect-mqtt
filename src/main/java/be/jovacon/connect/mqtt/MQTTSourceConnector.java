@@ -19,12 +19,16 @@ public class MQTTSourceConnector extends SourceConnector {
     private static final Logger logger = LoggerFactory.getLogger(MQTTSourceConnector.class);
     private Map<String, String> configProperties;
     private MQTTSourceConnectorConfig config;
+    private String connectorName;
 
     public void start(Map<String, String> properties) {
-        logger.info("Starting MQTT Source Connector");
+        this.connectorName = properties.get(Configuration.CONNECTOR_NAME);
+        logger.info("Starting MQTT source connector {}", this.connectorName);
 
         this.configProperties = Collections.unmodifiableMap(properties);
         this.config = new MQTTSourceConnectorConfig(configProperties);
+
+        logger.info("MQTT source connector {} is started.", this.connectorName);
     }
 
     public Class<? extends Task> taskClass() {
@@ -37,14 +41,19 @@ public class MQTTSourceConnector extends SourceConnector {
         }
 
         List<Map<String, String>> taskConfigs = new ArrayList<>(1);
-        taskConfigs.add(new HashMap<>(configProperties));
+
+        Map<String, String> taskConfig = new HashMap<>(configProperties);
+        taskConfig.put(Configuration.TASK_ID, "0");
+
+        taskConfigs.add(taskConfig);
 
         logger.debug("Task configs: " + taskConfigs);
         return taskConfigs;
     }
 
     public void stop() {
-        // nothing to do.
+        logger.info("Stopping MQTT source connector {}.", this.connectorName);
+        logger.info("MQTT source connector {} is stopped.", this.connectorName);
     }
 
     public ConfigDef config() {

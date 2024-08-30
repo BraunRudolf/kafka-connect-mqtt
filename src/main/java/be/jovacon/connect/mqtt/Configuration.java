@@ -12,6 +12,10 @@ import java.util.Map;
  * @since 1.1.1
  */
 public abstract class Configuration extends AbstractConfig {
+
+    public static final String CONNECTOR_NAME = "name";
+    public static final String TASK_ID = "task.id";
+
     public static final String BROKER = "mqtt.broker";
     public static final String BROKER_DOC = "Host and port of the MQTT broker, eg: tcp://192.168.1.1:1883";
 

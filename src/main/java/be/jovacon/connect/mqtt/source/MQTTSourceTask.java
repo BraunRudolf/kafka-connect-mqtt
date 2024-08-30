@@ -1,5 +1,6 @@
 package be.jovacon.connect.mqtt.source;
 
+import be.jovacon.connect.mqtt.Configuration;
 import be.jovacon.connect.mqtt.ConverterBuilder;
 import be.jovacon.connect.mqtt.Event;
 import be.jovacon.connect.mqtt.EventQueue;
@@ -35,6 +36,7 @@ public class MQTTSourceTask extends SourceTask {
     private static final String ATTR_MESSAGE_ID = "event.message.id";
     private static final String ATTR_MESSAGE_QOS = "event.message.qos";
 
+    private String taskName;
     private MQTTSourceConnectorConfig config;
     private Converter keyConverter;
     private Converter valueConverter;
@@ -42,6 +44,9 @@ public class MQTTSourceTask extends SourceTask {
     private IMqttClient client;
 
     public void start(Map<String, String> props) {
+        this.taskName = String.format("%s-%s", props.get(CONNECTOR_NAME), props.get(TASK_ID));
+        logger.info("Starting MQTT source task {}", this.taskName);
+
         config = new MQTTSourceConnectorConfig(props);
         buffer = new EventQueue.Builder<SourceRecord>()
                 .maxQueueSize(config.getInt(RECORDS_BUFFER_MAX_CAPACITY))
@@ -118,9 +123,9 @@ public class MQTTSourceTask extends SourceTask {
             }
             logger.info("MQTT Connection properties: " + options);
 
-            logger.info("Connecting to MQTT Broker " + config.getString(BROKER));
+            logger.info("Connecting to MQTT broker " + config.getString(BROKER));
             client.connect(options);
-            logger.info("Connected to MQTT Broker");
+            logger.info("Connected to MQTT broker");
 
             logger.info("Subscribing to " + Arrays.toString(topics) + " with QoS " + config.getInt(MQTT_QOS));
             try {
@@ -134,9 +139,11 @@ public class MQTTSourceTask extends SourceTask {
             }
 
         } catch (MqttException e) {
-            logger.error("Connect to MQTT Broker error.", e);
+            logger.error("Connect to MQTT broker error.", e);
             throw new ConnectException(e);
         }
+
+        logger.info("MQTT source task {} is started.", this.taskName);
     }
 
     /**
@@ -180,6 +187,8 @@ public class MQTTSourceTask extends SourceTask {
     }
 
     public void stop() {
+        logger.info("Stopping MQTT source task {}", this.taskName);
+
         try {
             logger.info("Disconnecting from MQTT Broker " + config.getString(BROKER));
             if (client != null) {
@@ -189,6 +198,8 @@ public class MQTTSourceTask extends SourceTask {
         } catch (MqttException e) {
             logger.error("Exception thrown while disconnecting client.", e);
         }
+
+        logger.info("MQTT source task {} is stopped.", this.taskName);
     }
 
     public String version() {
@@ -232,7 +243,7 @@ public class MQTTSourceTask extends SourceTask {
                 System.currentTimeMillis(),
                 headers
         );
-        logger.debug("Converted MQTT Message: " + record);
+        logger.debug("Converted MQTT message: " + record);
 
         Event<SourceRecord> event = new Event<>(record, size);
         event.setAttribute(ATTR_MESSAGE_ID, message.getId());
