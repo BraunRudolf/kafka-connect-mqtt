@@ -32,6 +32,9 @@ import static be.jovacon.connect.mqtt.source.MQTTSourceConnectorConfig.*;
 public class MQTTSourceTask extends SourceTask {
     private static final Logger logger = LoggerFactory.getLogger(MQTTSourceTask.class);
 
+    private static final String ATTR_MESSAGE_ID = "event.message.id";
+    private static final String ATTR_MESSAGE_QOS = "event.message.qos";
+
     private MQTTSourceConnectorConfig config;
     private Converter keyConverter;
     private Converter valueConverter;
@@ -152,16 +155,19 @@ public class MQTTSourceTask extends SourceTask {
         if (config.getInt(MQTT_QOS) > 0) {
             // ack
             for (Event<SourceRecord> event : events) {
+                final int messageId = (int) event.getAttribute(ATTR_MESSAGE_ID);
+                final int qos = (int) event.getAttribute(ATTR_MESSAGE_QOS);
+
                 try {
-                    client.messageArrivedComplete(event.getMessageId(), event.getQos());
+                    client.messageArrivedComplete(messageId, qos);
                 } catch (MqttException e) {
                     // Theoretically, such an error should not occur;
                     // even if it does, it would only result in duplicate message consumption.
                     // Therefore, if a retry still fails, it should be ignored.
-                    logger.warn("Ack message[id: {}, qos: {}] error.", event.getMessageId(), event.getQos(), e);
+                    logger.warn("Ack message[id: {}, qos: {}] error.", messageId, qos, e);
 
                     try {
-                        client.messageArrivedComplete(event.getMessageId(), event.getQos());
+                        client.messageArrivedComplete(messageId, qos);
                     } catch (MqttException ignored) {
                     }
                 }
@@ -228,7 +234,11 @@ public class MQTTSourceTask extends SourceTask {
         );
         logger.debug("Converted MQTT Message: " + record);
 
-        return new Event<>(record, size, message.getId(), message.getQos());
+        Event<SourceRecord> event = new Event<>(record, size);
+        event.setAttribute(ATTR_MESSAGE_ID, message.getId());
+        event.setAttribute(ATTR_MESSAGE_QOS, message.getQos());
+
+        return event;
     }
 
 }

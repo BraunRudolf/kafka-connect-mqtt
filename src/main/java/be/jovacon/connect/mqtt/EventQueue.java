@@ -3,7 +3,6 @@ package be.jovacon.connect.mqtt;
 import be.jovacon.connect.mqtt.annotation.ThreadSafe;
 import be.jovacon.connect.mqtt.util.Clock;
 import be.jovacon.connect.mqtt.util.Threads;
-import org.apache.kafka.connect.connector.ConnectRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +31,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  */
 @ThreadSafe
-public class EventQueue<E extends ConnectRecord<E>> implements EventQueueMetrics {
+public class EventQueue<E> implements EventQueueMetrics {
 
     private static final Logger logger = LoggerFactory.getLogger(EventQueue.class);
 
@@ -65,7 +64,7 @@ public class EventQueue<E extends ConnectRecord<E>> implements EventQueueMetrics
         this.maxQueueSizeInBytes = maxQueueSizeInBytes;
     }
 
-    public static class Builder<E extends ConnectRecord<E>> {
+    public static class Builder<E> {
 
         private Duration pollInterval;
         private int maxQueueSize;
