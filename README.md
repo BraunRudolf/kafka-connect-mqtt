@@ -86,7 +86,7 @@ value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 * `mqtt.keepAliveInterval` (optional)(default: 60 seconds)
 * `mqtt.cleanSession` (optional)(default: true): Controls the state after disconnecting the client from the broker.
 * `mqtt.connectionTimeout` (optional)(default: 30 seconds)
-* `mqtt.username` (optional)(default: ""): Username to connect to MQTT broker
+* `mqtt.userName` (optional)(default: ""): Username to connect to MQTT broker
 * `mqtt.password` (optional)(default: ""): Password to connect to MQTT broker
 * `key.converter` (optional)(default: "org.apache.kafka.connect.storage.StringConverter")
 * `key.converter.schemas.enable` (optional)(default: false)
@@ -129,7 +129,7 @@ curl -X POST \
 * `mqtt.keepAliveInterval` (optional)(default: 60 seconds)
 * `mqtt.cleanSession` (optional)(default: true): Controls the state after disconnecting the client from the broker.
 * `mqtt.connectionTimeout` (optional)(default: 30 seconds)
-* `mqtt.username` (optional): Username to connect to MQTT broker
+* `mqtt.userName` (optional): Username to connect to MQTT broker
 * `mqtt.password` (optional): Password to connect to MQTT broker
 
 
